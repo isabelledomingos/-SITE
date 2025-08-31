@@ -2,19 +2,23 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Anotações e Desenhos para iPad com Login</title>
+  <title>Anotações e Desenhos - Usuário</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {background: #f2f2f2; font-family: Arial, Helvetica, sans-serif; margin: 0;}
     .container {max-width: 700px; margin: 30px auto; background: #fff; border-radius: 15px; box-shadow: 0 4px 16px #0002; padding: 20px;}
-    h1 {text-align:center; font-size: 1.5em;}
-    #notes {width: 100%; height: 100px; border-radius: 8px; border: 1px solid #bbb; margin-bottom: 16px; font-size: 1.1em; padding: 10px; box-sizing: border-box;}
-    #drawWrap {border: 1px solid #bbb; border-radius: 8px; margin-bottom: 12px; overflow: hidden; background: #fff; touch-action: none;}
-    #draw {display: block; width: 100%; height: 300px; background: #fff; touch-action: none;}
+    h1 {text-align:center;}
+    #notes {width: 100%; height: 100px; border-radius: 8px; border: 1px solid #bbb; margin-bottom: 16px; font-size: 1.1em; padding: 10px;}
+    #drawWrap {border: 1px solid #bbb; border-radius: 8px; margin-bottom: 12px; background: #fff; overflow: hidden; touch-action: none;}
+    #draw {display: block; width: 100%; height: 300px; background: #fff;}
+    .tabs {display: flex; justify-content: center; margin-bottom: 15px;}
+    .tab-btn {background: #eee; border: none; border-radius: 10px 10px 0 0; padding: 10px 32px; margin: 0 2px; font-size: 1.06em; cursor: pointer; font-weight: bold; color: #555;}
+    .tab-btn.active, .tab-btn:hover {background: #4facfe; color: #fff;}
+    .tab-content {display: none;}
+    .tab-content.active {display: block;}
     .toolbar {display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; align-items: center;}
-    .toolbar label {font-size: 0.95em; margin-right: 4px;}
+    .toolbar input[type=color] {width: 36px; height: 36px;}
     .toolbar input[type=range] {vertical-align: middle;}
-    .toolbar input[type=color] {width: 36px; height: 36px; border: none; background: none;}
     .toolbar button {border: none; border-radius: 6px; background: #eee; padding: 7px 14px; font-size: 1em; cursor: pointer;}
     .toolbar button:hover {background: #ddd;}
     .actions {display: flex; justify-content: center; gap: 12px; margin-top: 16px;}
@@ -22,22 +26,11 @@
     .actions button:hover {background: #0073e6;}
     #loginBox {max-width: 300px; margin: 70px auto 0 auto; background: #fff; padding: 30px 20px; border-radius: 10px; box-shadow: 0 2px 8px #0001;}
     #loginBox input {width: 100%; margin-bottom: 12px; padding: 10px; border-radius: 6px; border: 1px solid #bbb;}
-    #loginBox button {width: 100%; padding: 10px; border-radius: 6px; border: none; background: #4facfe; color: #fff; font-size: 1em;}
+    #loginBox button {width: 100%; padding: 10px; border-radius: 6px; border: none; background: #4facfe; color: #fff;}
     #loginBox button:hover {background: #0073e6;}
     #logoutBtn {float:right; background: #d9534f; color: #fff; font-weight:bold; border:none; border-radius:6px; padding:7px 18px; cursor:pointer;}
     #logoutBtn:hover {background: #b52b27;}
     .welcome {text-align:right; color:#888; margin-bottom:10px;}
-    /* Abas */
-    .tabs {display: flex; justify-content: center; margin-bottom: 15px;}
-    .tab-btn {
-      background: #eee; border: none; border-radius: 10px 10px 0 0;
-      padding: 10px 32px; margin: 0 2px; font-size: 1.06em; cursor: pointer;
-      font-weight: bold; color: #555; transition: background .2s;
-    }
-    .tab-btn.active, .tab-btn:hover {background: #4facfe; color: #fff;}
-    .tab-content {display: none;}
-    .tab-content.active {display: block;}
-    /* Salvos */
     #savedNotes {white-space: pre-wrap; background: #fafaff; border-radius: 8px; border: 1px solid #bbb; padding: 10px; color: #222;}
     #savedDraw {display:block; margin: 18px auto 0 auto; border-radius: 8px; border: 1px solid #bbb; max-width:100%; background: #fff;}
     #noSaved {color:#888; text-align:center; margin:20px;}
@@ -45,7 +38,7 @@
   </style>
 </head>
 <body>
-  <div id="loginBox" style="display:none;">
+  <div id="loginBox">
     <h2 style="text-align:center;">Login</h2>
     <input type="text" id="user" placeholder="Usuário" autocomplete="username">
     <input type="password" id="pass" placeholder="Senha" autocomplete="current-password">
@@ -54,22 +47,21 @@
     <div id="loginMsg" style="color:#d9534f;margin-top:12px;text-align:center;"></div>
   </div>
   <div class="container" id="mainApp" style="display:none;">
-    <div class="welcome">Bem-vindo, <span id="showUser"></span> <button id="logoutBtn" onclick="logout()">Sair</button></div>
+    <div class="welcome">
+      Bem-vindo, <span id="showUser"></span>
+      <button id="logoutBtn" onclick="logout()">Sair</button>
+    </div>
     <h1>📝 Anotações &amp; Desenhos</h1>
-
-    <!-- Abas -->
     <div class="tabs">
-      <button class="tab-btn active" id="tabNotes" onclick="showTab('notesTab')">Escrever</button>
-      <button class="tab-btn" id="tabDraw" onclick="showTab('drawTab')">Desenhar</button>
+      <button class="tab-btn active" id="tabNotes" onclick="showTab('notesTab')">Anotações</button>
+      <button class="tab-btn" id="tabDraw" onclick="showTab('drawTab')">Desenhos</button>
       <button class="tab-btn" id="tabSaved" onclick="showTab('savedTab')">Salvos</button>
     </div>
 
-    <!-- Conteúdo da aba Escrever -->
     <div class="tab-content active" id="notesTab">
       <textarea id="notes" placeholder="Digite suas anotações aqui..."></textarea>
     </div>
 
-    <!-- Conteúdo da aba Desenhar -->
     <div class="tab-content" id="drawTab">
       <div class="toolbar">
         <label>Cor:</label>
@@ -84,7 +76,6 @@
       </div>
     </div>
 
-    <!-- Conteúdo da aba Salvos -->
     <div class="tab-content" id="savedTab">
       <div id="noSaved">Nenhuma anotação ou desenho salvo ainda.</div>
       <div id="savedNotes" style="display:none;"></div>
@@ -96,7 +87,7 @@
       <button onclick="loadAll()">🔄 Restaurar</button>
     </div>
     <p style="text-align:center;color:#888;font-size:0.95em;margin-top:14px;">
-      Compatível com iPadOS antigos • Tudo salvo no seu dispositivo por usuário
+      Tudo salvo no seu dispositivo por usuário.
     </p>
   </div>
   <script>
@@ -271,7 +262,7 @@
       localStorage.setItem(userKey('notes'), notes.value);
       localStorage.setItem(userKey('draw'), canvas.toDataURL());
       alert('Salvo com sucesso!');
-      showSaved(); // Atualiza a aba de salvos após salvar
+      showSaved();
     }
     function loadAll() {
       if(!currentUser) return;
@@ -326,7 +317,6 @@
         showLogin(true);
       }
       resizeCanvas();
-      // Sempre mostrar aba de notas por padrão
       showTab('notesTab');
     }
     // Mantém usuário logado até logout
