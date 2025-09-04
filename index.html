@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Notas & Desenhos</title>
+  <style>
+    body { font-family: sans-serif; background: #f4f4f4; margin: 0; }
+    .container { max-width: 800px; margin: 32px auto; background: #fff; padding: 24px; border-radius: 10px; box-shadow: 0 2px 8px #0001; }
+    textarea { width: 100%; min-height: 120px; margin-bottom: 20px; font-size: 16px; resize: vertical; border-radius: 6px; border: 1px solid #ccc; padding: 10px; }
+    #canvasBox { background: #f9f9f9; padding: 12px; border: 1px solid #ddd; border-radius: 8px; display: flex; flex-direction: column; align-items: center; }
+    #drawCanvas { background: #fff; border: 1px solid #bbb; border-radius: 5px; cursor: crosshair; }
+    .tools { margin: 10px 0 0 0; }
+    .tools button { margin-right: 6px; }
+    .save-btn { background: #2196f3; color: white; border: none; padding: 8px 18px; border-radius: 5px; cursor: pointer; font-size: 16px; }
+    .save-btn:hover { background: #1769aa; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Minhas Anotações</h2>
+    <textarea id="noteText" placeholder="Escreva sua anotação aqui..."></textarea>
+    <div id="canvasBox">
+      <canvas id="drawCanvas" width="500" height="300"></canvas>
+      <div class="tools">
+        <button onclick="clearCanvas()">Limpar</button>
+        <button onclick="toggleEraser()">Borracha</button>
+        <label>Cor: <input type="color" id="colorPicker" value="#000000"></label>
+      </div>
+    </div>
+    <button class="save-btn" onclick="saveNote()">Salvar Nota</button>
+  </div>
+  <script>
+    // Anotações simples no localStorage
+    function saveNote() {
+      const text = document.getElementById('noteText').value;
+      const drawing = drawCanvas.toDataURL();
+      localStorage.setItem('notaSimples', JSON.stringify({ text, drawing }));
+      alert('Nota salva!');
+    }
+
+    // Desenho básico
+    const drawCanvas = document.getElementById('drawCanvas');
+    const ctx = drawCanvas.getContext('2d');
+    let drawing = false, eraser = false, lastX = 0, lastY = 0;
+    const colorPicker = document.getElementById('colorPicker');
+
+    drawCanvas.addEventListener('mousedown', e => {
+      drawing = true;
+      [lastX, lastY] = [e.offsetX, e.offsetY];
+    });
+    drawCanvas.addEventListener('mousemove', e => {
+      if (!drawing) return;
+      ctx.strokeStyle = eraser ? '#fff' : colorPicker.value;
+      ctx.lineWidth = eraser ? 14 : 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(e.offsetX, e.offsetY);
+      ctx.stroke();
+      [lastX, lastY] = [e.offsetX, e.offsetY];
+    });
+    document.addEventListener('mouseup', () => drawing = false);
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    }
+    function toggleEraser() {
+      eraser = !eraser;
+    }
+
+    // Carregar nota salva
+    window.onload = function() {
+      const nota = JSON.parse(localStorage.getItem('notaSimples') || '{}');
+      if (nota.text) document.getElementById('noteText').value = nota.text;
+      if (
