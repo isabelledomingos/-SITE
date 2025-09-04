@@ -1,75 +1,200 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Notas & Desenhos</title>
-  <style>
-    body { font-family: sans-serif; background: #f4f4f4; margin: 0; }
-    .container { max-width: 800px; margin: 32px auto; background: #fff; padding: 24px; border-radius: 10px; box-shadow: 0 2px 8px #0001; }
-    textarea { width: 100%; min-height: 120px; margin-bottom: 20px; font-size: 16px; resize: vertical; border-radius: 6px; border: 1px solid #ccc; padding: 10px; }
-    #canvasBox { background: #f9f9f9; padding: 12px; border: 1px solid #ddd; border-radius: 8px; display: flex; flex-direction: column; align-items: center; }
-    #drawCanvas { background: #fff; border: 1px solid #bbb; border-radius: 5px; cursor: crosshair; }
-    .tools { margin: 10px 0 0 0; }
-    .tools button { margin-right: 6px; }
-    .save-btn { background: #2196f3; color: white; border: none; padding: 8px 18px; border-radius: 5px; cursor: pointer; font-size: 16px; }
-    .save-btn:hover { background: #1769aa; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Annotator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.269/pdf.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #pdf-viewer { border: 1px solid #ccc; height: 600px; overflow: auto; }
+        .highlight { background-color: yellow; position: absolute; pointer-events: none; }
+        .annotation { position: absolute; background: #fffbcc; border: 1px solid #ffeb3b; padding: 5px; font-size: 12px; display: none; z-index: 10; }
+        .tab { cursor: pointer; padding: 10px 20px; border-bottom: 2px solid transparent; }
+        .tab.active { border-bottom-color: #007bff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
 </head>
-<body>
-  <div class="container">
-    <h2>Minhas Anotações</h2>
-    <textarea id="noteText" placeholder="Escreva sua anotação aqui..."></textarea>
-    <div id="canvasBox">
-      <canvas id="drawCanvas" width="500" height="300"></canvas>
-      <div class="tools">
-        <button onclick="clearCanvas()">Limpar</button>
-        <button onclick="toggleEraser()">Borracha</button>
-        <label>Cor: <input type="color" id="colorPicker" value="#000000"></label>
-      </div>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <h1 class="text-3xl font-bold mb-4">PDF Annotator</h1>
+        
+        <!-- Tabs Navigation -->
+        <div class="mb-4">
+            <div class="flex border-b">
+                <div id="tab-pdf" class="tab active">Visualizar e Anotar PDF</div>
+                <div id="tab-notes" class="tab">Anotações Separadas</div>
+            </div>
+        </div>
+
+        <!-- PDF Tab -->
+        <div id="content-pdf" class="tab-content active">
+            <div class="mb-4">
+                <label for="pdf-input" class="block mb-2">URL do PDF ou Selecionar Arquivo:</label>
+                <input type="url" id="pdf-url" placeholder="https://example.com/sample.pdf" class="form-input border rounded p-2 w-full mb-2">
+                <input type="file" id="pdf-file" accept="application/pdf" class="mb-2">
+                <button id="load-pdf" class="bg-blue-500 text-white px-4 py-2 rounded">Carregar PDF</button>
+            </div>
+            
+            <div class="mb-4">
+                <button id="highlight-btn" class="bg-yellow-500 text-white px-4 py-2 rounded mr-2">Destacar Seleção</button>
+                <button id="annotate-btn" class="bg-green-500 text-white px-4 py-2 rounded mr-2">Adicionar Anotação</button>
+                <button id="clear-highlights" class="bg-red-500 text-white px-4 py-2 rounded">Limpar Destaques</button>
+            </div>
+            
+            <div id="pdf-viewer" class="relative"></div>
+        </div>
+
+        <!-- Notes Tab -->
+        <div id="content-notes" class="tab-content">
+            <h2 class="text-2xl mb-4">Anotações Separadas</h2>
+            <textarea id="separate-notes" placeholder="Digite suas anotações aqui..." class="w-full h-64 p-4 border rounded"></textarea>
+            <button id="save-notes" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded">Salvar Anotações</button>
+            <div id="saved-notes" class="mt-4"></div>
+        </div>
     </div>
-    <button class="save-btn" onclick="saveNote()">Salvar Nota</button>
-  </div>
-  <script>
-    // Anotações simples no localStorage
-    function saveNote() {
-      const text = document.getElementById('noteText').value;
-      const drawing = drawCanvas.toDataURL();
-      localStorage.setItem('notaSimples', JSON.stringify({ text, drawing }));
-      alert('Nota salva!');
-    }
 
-    // Desenho básico
-    const drawCanvas = document.getElementById('drawCanvas');
-    const ctx = drawCanvas.getContext('2d');
-    let drawing = false, eraser = false, lastX = 0, lastY = 0;
-    const colorPicker = document.getElementById('colorPicker');
+    <script>
+        const { pdfjsLib } = globalThis;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.269/pdf.worker.min.js';
 
-    drawCanvas.addEventListener('mousedown', e => {
-      drawing = true;
-      [lastX, lastY] = [e.offsetX, e.offsetY];
-    });
-    drawCanvas.addEventListener('mousemove', e => {
-      if (!drawing) return;
-      ctx.strokeStyle = eraser ? '#fff' : colorPicker.value;
-      ctx.lineWidth = eraser ? 14 : 2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(lastX, lastY);
-      ctx.lineTo(e.offsetX, e.offsetY);
-      ctx.stroke();
-      [lastX, lastY] = [e.offsetX, e.offsetY];
-    });
-    document.addEventListener('mouseup', () => drawing = false);
+        let pdfDoc = null;
+        let highlights = [];
+        let annotations = [];
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.style.width = '100%';
+        canvas.style.height = 'auto';
 
-    function clearCanvas() {
-      ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-    }
-    function toggleEraser() {
-      eraser = !eraser;
-    }
+        // Tab switching
+        document.getElementById('tab-pdf').addEventListener('click', () => {
+            setActiveTab('pdf');
+        });
+        document.getElementById('tab-notes').addEventListener('click', () => {
+            setActiveTab('notes');
+        });
 
-    // Carregar nota salva
-    window.onload = function() {
-      const nota = JSON.parse(localStorage.getItem('notaSimples') || '{}');
-      if (nota.text) document.getElementById('noteText').value = nota.text;
-      if (
+        function setActiveTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            document.getElementById('content-' + tab).classList.add('active');
+        }
+
+        // Load PDF from URL or file
+        document.getElementById('load-pdf').addEventListener('click', async () => {
+            const url = document.getElementById('pdf-url').value;
+            const file = document.getElementById('pdf-file').files[0];
+            if (url) {
+                loadPdfFromUrl(url);
+            } else if (file) {
+                loadPdfFromFile(file);
+            }
+        });
+
+        async function loadPdfFromUrl(url) {
+            try {
+                pdfDoc = await pdfjsLib.getDocument(url).promise;
+                renderPage(1);
+            } catch (error) {
+                alert('Erro ao carregar PDF de URL.');
+            }
+        }
+
+        async function loadPdfFromFile(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            try {
+                pdfDoc = await pdfjsLib.getDocument(new Uint8Array(arrayBuffer)).promise;
+                renderPage(1);
+            } catch (error) {
+                alert('Erro ao carregar PDF do arquivo.');
+            }
+        }
+
+        async function renderPage(pageNum) {
+            const page = await pdfDoc.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 1.5 });
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            const renderContext = { canvasContext: context, viewport };
+            await page.render(renderContext).promise;
+            document.getElementById('pdf-viewer').innerHTML = '';
+            document.getElementById('pdf-viewer').appendChild(canvas);
+        }
+
+        // Highlighting
+        let isHighlighting = false;
+        document.getElementById('highlight-btn').addEventListener('click', () => {
+            isHighlighting = !isHighlighting;
+            document.getElementById('highlight-btn').classList.toggle('bg-yellow-700');
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (isHighlighting) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const width = 100; // Example width, can be adjusted
+                const height = 20; // Example height
+                addHighlight(x, y, width, height);
+            }
+        });
+
+        function addHighlight(x, y, width, height) {
+            const highlightDiv = document.createElement('div');
+            highlightDiv.className = 'highlight';
+            highlightDiv.style.left = x + 'px';
+            highlightDiv.style.top = y + 'px';
+            highlightDiv.style.width = width + 'px';
+            highlightDiv.style.height = height + 'px';
+            document.getElementById('pdf-viewer').appendChild(highlightDiv);
+            highlights.push({ x, y, width, height });
+        }
+
+        // Annotating
+        document.getElementById('annotate-btn').addEventListener('click', () => {
+            if (highlights.length > 0) {
+                const note = prompt('Digite sua anotação:');
+                if (note) {
+                    const lastHighlight = highlights[highlights.length - 1];
+                    const annotationDiv = document.createElement('div');
+                    annotationDiv.className = 'annotation';
+                    annotationDiv.style.left = lastHighlight.x + lastHighlight.width + 10 + 'px';
+                    annotationDiv.style.top = lastHighlight.y + 'px';
+                    annotationDiv.textContent = note;
+                    annotationDiv.style.display = 'block';
+                    document.getElementById('pdf-viewer').appendChild(annotationDiv);
+                    annotations.push(note);
+                }
+            }
+        });
+
+        document.getElementById('clear-highlights').addEventListener('click', () => {
+            document.querySelectorAll('.highlight').forEach(h => h.remove());
+            document.querySelectorAll('.annotation').forEach(a => a.remove());
+            highlights = [];
+            annotations = [];
+        });
+
+        // Separate Notes
+        document.getElementById('save-notes').addEventListener('click', () => {
+            const notes = document.getElementById('separate-notes').value;
+            localStorage.setItem('separateNotes', notes);
+            document.getElementById('saved-notes').innerHTML = '<p>Anotações salvas: ' + notes + '</p>';
+        });
+
+        // Load saved notes on init
+        window.addEventListener('load', () => {
+            const saved = localStorage.getItem('separateNotes');
+            if (saved) {
+                document.getElementById('separate-notes').value = saved;
+                document.getElementById('saved-notes').innerHTML = '<p>Anotações salvas: ' + saved + '</p>';
+            }
+        });
+    </script>
+</body>
+</html>
+</content>
+</create_file>
